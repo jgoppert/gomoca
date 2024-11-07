@@ -22,12 +22,16 @@ Remember to add GOBIN to your path: [GO Compile Install](https://go.dev/doc/tuto
 gomoca resources/models/bouncing_ball.mo
 ```
 
-## Building In Directory
+## Development
+
+### Using Go Run Cmd
+```bash
+go run ./cmd/gomoca/ resources/models/bouncing_ball.mo 
+```
+
+### Building in Local Directory
 ```bash
 mkdir -p bin && go build -o bin ./...
 ```
 
-## Test CLI
-```bash
-go run ./cli test/test.mo
-```
+
