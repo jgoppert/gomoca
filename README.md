@@ -16,6 +16,8 @@ go install ./...
 
 Remember to add GOBIN to your path: [GO Compile Install](https://go.dev/doc/tutorial/compile-install)
 
+### Execute the Compiler
+
 ```bash
 gomoca resources/models/bouncing_ball.mo
 ```
