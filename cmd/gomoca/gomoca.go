@@ -14,6 +14,10 @@ func main() {
 	if _, err := os.Stat(fileName); errors.Is(err, os.ErrNotExist) {
 		log.Fatalf("%s does not exist", fileName)
 	}
-	def := ast.Parse(fileName, listener)
+	file, err := os.ReadFile(fileName)
+	if err != nil {
+		log.Fatalf("failed to read file: %s %v", fileName, err)
+	}
+	def := ast.Parse(string(file), listener)
 	fmt.Printf("%+v\n", def)
 }
