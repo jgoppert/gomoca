@@ -34,7 +34,7 @@ jobs:
       run: go test -v ./...
 
     - name: Generate coverage report
-      run: go test -coverprofile=coverage.out ./ast ./generator ./cmd
+      run: go test -coverprofile=coverage.out ./ast/... ./generator/... ./cmd/...
 
     - name: Check coverage
       id: coverage
