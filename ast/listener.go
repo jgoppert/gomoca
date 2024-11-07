@@ -14,7 +14,7 @@ type Listener struct {
 	*parser.BaseModelicaListener
 	Depth int // used for debug printing
 	// ScopeDefinition       Stack[Definition]
-	// ScopeClass            Stack[Class]
+	ScopeClass Stack[Class]
 	// ScopeComponent        Stack[Component]
 	// ScopeEquationSection  Stack[EquationSection]
 	// ScopeAlgorithmSection Stack[AlgorithmSection]
@@ -76,26 +76,27 @@ func (l *Listener) ExitStored_definition(c *parser.Stored_definitionContext) {
 	l.Ast[c] = d
 }
 
+func (l *Listener) EnterClass_definition(c *parser.Class_definitionContext) {
+	d := *NewClass()
+	l.ScopeClass.Push(&d)
+}
+
 func (l *Listener) ExitClass_definition(c *parser.Class_definitionContext) {
-	class_spec, ok := l.Ast[c.Class_specifier()]
-	if !ok {
-		panic("key")
-	}
-	d := class_spec.(Class)
-	d.Partial = l.Ast[c.Class_prefixes().PARTIAL()].(bool)
-	d.Type = c.Class_prefixes().Class_type().GetText()
+	d, _ := l.ScopeClass.Pop()
 	l.Ast[c] = d
 }
 
 func (l *Listener) ExitClass_specifier_long(c *parser.Class_specifier_longContext) {
-	d := *NewClass()
+	d, _ := l.ScopeClass.Last()
 	if c.GetName_start().GetText() != c.GetName_end().GetText() {
 		panic("class start name %s and end name %s don't match")
 	}
 	d.Name = c.GetName_start().GetText()
 	d.Description = c.Description_string().GetText()
+	//c.Composition().Element_list()
+	//c.Composition().Composition_non_first().
 	//d.Components = l.Ast[c.Composition().Element_list()]
-	l.Ast[c] = d
+	//d.EquationSections = append(d.EquationSections, )
 }
 
 func (l *Listener) ExitElement_component_clause(c *parser.Element_component_clauseContext) {
@@ -139,7 +140,7 @@ func (l *Listener) ExitDescription(c *parser.DescriptionContext) { // unset clas
 }
 
 func (l *Listener) ExitEquation_simple(c *parser.Equation_simpleContext) {
-	l.Ast[c] = &Equation{
+	l.Ast[c] = Equation{
 		Left:  l.Ast[c.Simple_expression()],
 		Right: l.Ast[c.Expression()]}
 }
@@ -303,7 +304,15 @@ func (l *Listener) ExitPrimary_derivative(c *parser.Primary_derivativeContext) {
 func (l *Listener) ExitComposition_equation_section(c *parser.Composition_equation_sectionContext) {
 	// TODO
 	//l.Ast[c] = l.Ast[c]
-	l.Ast[c] = l.Ast[c.AllEquation()[0]]
+	sec := *NewEquationSection()
+	for _, c_eq := range c.AllEquation() {
+		eq, ok := l.Ast[c_eq]
+		if ok {
+			sec.Equations = append(sec.Equations, eq.(Equation))
+		} else {
+			log.Fatalf("no Ast for equation context %v", c_eq)
+		}
+	}
 }
 
 func (l *Listener) ExitComposition(c *parser.CompositionContext) {

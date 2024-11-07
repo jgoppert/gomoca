@@ -1,4 +1,6 @@
 // modelica language standard 3.7
+// note that grammar that is not yet supported
+// by gomoca is commented out
 grammar Modelica;
 
 //=========================================================

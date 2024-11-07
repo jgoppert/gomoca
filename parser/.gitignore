@@ -6,3 +6,4 @@ Modelica.interp
 Modelica.tokens
 ModelicaLexer.interp
 ModelicaLexer.tokens
+.antlr/
