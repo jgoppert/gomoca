@@ -40,4 +40,7 @@ go run ./cmd/gomoca/ resources/models/bouncing_ball.mo
 mkdir -p bin && go build -o bin ./...
 ```
 
+### Debugging
+Make sure you install dlv. Instruction for VSCode [here](https://github.com/golang/vscode-go/blob/master/docs/debugging.md)
 
+* gomoca Vscode Debug Config: This config runs a modelica model (current file in VSCode) with gomoca and starts the debugger.
