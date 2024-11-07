@@ -24,6 +24,11 @@ gomoca resources/models/bouncing_ball.mo
 
 ## Development
 
+If you change the ANTLR grammar in parser/Modelica.g4, you must regenerate the parser
+### Generating the Parser
+```bash
+```
+
 ### Using Go Run Cmd
 ```bash
 go run ./cmd/gomoca/ resources/models/bouncing_ball.mo 
