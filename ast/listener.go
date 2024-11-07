@@ -3,22 +3,24 @@ package ast
 import (
 	"fmt"
 	"gomoca/parser"
+	"log"
 	"strconv"
+	"strings"
 
 	"github.com/antlr4-go/antlr/v4"
 )
 
 type Listener struct {
 	*parser.BaseModelicaListener
-	Depth                 int         // used for debug printing
-	Def                   *Definition // root of AST
-	ScopeClass            *Class      // class scope
-	ScopeComponent        *Component
-	ScopeEquationSection  *EquationSection
-	ScopeAlgorithmSection *AlgorithmSection
-	ScopeEquation         *Equation
-	ScopeStatement        *Statement
-	Ast                   map[any]any
+	Depth int // used for debug printing
+	// ScopeDefinition       Stack[Definition]
+	// ScopeClass            Stack[Class]
+	// ScopeComponent        Stack[Component]
+	// ScopeEquationSection  Stack[EquationSection]
+	// ScopeAlgorithmSection Stack[AlgorithmSection]
+	// ScopeEquation         Stack[Equation]
+	// ScopeStatement        Stack[Statement]
+	Ast map[any]any
 }
 
 func Parse(file string, listener *Listener) Definition {
@@ -43,15 +45,16 @@ func NewListener() *Listener {
 // Every Rule
 // -----------------------------------------------------------------------------
 func (l *Listener) EnterEveryRule(c antlr.ParserRuleContext) {
-	//fmt.Println(strings.Repeat("-", l.Depth), "enter",
-	//	parser.ModelicaParserStaticData.RuleNames[c.GetRuleIndex()])
+	fmt.Println(strings.Repeat("-", l.Depth), "enter",
+		parser.ModelicaParserStaticData.RuleNames[c.GetRuleIndex()])
 	l.Depth += 1 // decrease tree Depth
 }
 
 func (l *Listener) ExitEveryRule(c antlr.ParserRuleContext) {
 	l.Depth -= 1 // decrease tree Depth
-	//fmt.Println(strings.Repeat("-", l.Depth), "exit",
-	//	parser.ModelicaParserStaticData.RuleNames[c.GetRuleIndex()])
+	fmt.Println(strings.Repeat("-", l.Depth), "exit",
+		parser.ModelicaParserStaticData.RuleNames[c.GetRuleIndex()])
+	fmt.Printf("%+v\n", l.Ast[c])
 }
 
 // -----------------------------------------------------------------------------
@@ -60,69 +63,89 @@ func (l *Listener) ExitEveryRule(c antlr.ParserRuleContext) {
 // This is the root of the AST
 // -----------------------------------------------------------------------------
 func (l *Listener) ExitStored_definition(c *parser.Stored_definitionContext) {
-	//fmt.Printf("def: %+v\n", l.Ast[c])
+	d := Definition{}
+	for i, class_def := range c.AllClass_definition() {
+		fmt.Println(i, &class_def)
+		class, ok := l.Ast[class_def].(Class)
+		if ok {
+			class.Final = c.FINAL(i) != nil
+			d.Classes[class.Name] = class
+		} else {
+			println("not ok")
+		}
+	}
+	l.Ast[c] = d
 }
 
-// -----------------------------------------------------------------------------
-// Class Scope
-// -----------------------------------------------------------------------------
-func (l *Listener) EnterClass_definition(c *parser.Class_definitionContext) {
+func (l *Listener) ExitClass_definition(c *parser.Class_definitionContext) {
+	d := NewClass()
+	d.Partial = l.Ast[c.Class_prefixes().PARTIAL()].(bool)
+	d.Type = c.Class_prefixes().Class_type().GetText()
+	l.Ast[c] = d
+	println("c", c)
 }
 
 func (l *Listener) ExitLong_class_specifier(c *parser.Long_class_specifierContext) {
+	d := NewClass()
+	if c.IDENT(0).GetText() != c.IDENT(1).GetText() {
+		panic("class start name %s and end name %s don't match")
+	}
+	d.Name = c.IDENT(0).GetText()
+	d.Description = c.Description_string().GetText()
+
+	// for cElem := range c.Composition().Element_list().AllElement() {
+	// 	elem := l.Ast[cElem].(Component)
+	// 	d.Components[elem.Name] = elem
+	// }
+	//d.EquationSections = append(d.EquationSections, l.Ast[c.Composition()])
+	l.Ast[c] = d
 }
 
-func (l *Listener) ExitClass_definition(c *parser.Class_definitionContext) { // unset class scope
+func (l *Listener) ExitClass_type_block(c *parser.Class_type_blockContext) {
+	l.Ast[c] = c.GetText()
 }
 
-// -----------------------------------------------------------------------------
-// Component Scope
-// -----------------------------------------------------------------------------
-func (l *Listener) EnterComponent_declaration(c *parser.Component_declarationContext) {
+func (l *Listener) ExitClass_prefixes(c *parser.Class_prefixesContext) {
+	l.Ast[c.PARTIAL()] = c.PARTIAL() != nil
 }
 
-func (l *Listener) ExitDeclaration(c *parser.DeclarationContext) {
-}
-
-func (l *Listener) ExitComponent_declaration(c *parser.Component_declarationContext) { // unset component scope
-}
-
-// -----------------------------------------------------------------------------
-// Equation Section Scope
-// -----------------------------------------------------------------------------
-func (l *Listener) EnterComposition_equation_section(c *parser.Composition_equation_sectionContext) {
-}
-
-func (l *Listener) ExitComposition_equation_section(c *parser.Composition_equation_sectionContext) {
-
-}
-
-// -----------------------------------------------------------------------------
-// Equation Scope
-// -----------------------------------------------------------------------------
-func (l *Listener) EnterEquation(c *parser.EquationContext) {
+func (l *Listener) ExitDescription_string(c *parser.Description_stringContext) { // unset class scope
+	l.Ast[c] = c.GetText()
 }
 
 func (l *Listener) ExitEquation_simple(c *parser.Equation_simpleContext) {
-	l.Ast[c] = Equation{
+	l.Ast[c] = &Equation{
 		Left:  l.Ast[c.Simple_expression()],
 		Right: l.Ast[c.Expression()]}
 	fmt.Printf("%v\n", l.Ast[c])
 }
 
 // -----------------------------------------------------------------------------
-// Algorithm Section Scope
+// Primary
 // -----------------------------------------------------------------------------
-func (l *Listener) EnterComposition_algorithm_section(c *parser.Composition_algorithm_sectionContext) {
+func (l *Listener) ExitComponent_reference(c *parser.Component_referenceContext) {
+	ref := &ComponentReference{Local: c.GetLocal() != nil}
+	for _, c_scope := range c.AllComponent_scope() {
+		fmt.Printf("key: %p\n", c_scope)
+
+		scope, ok := l.Ast[c_scope]
+		if !ok {
+			log.Fatalf("key: %p not found", c_scope)
+		}
+		ref.Scopes = append(ref.Scopes, *scope.(*ComponentReferenceScope))
+	}
+	l.Ast[c] = ref
 }
 
-func (l *Listener) ExitComposition_algorithm_section(c *parser.Composition_algorithm_sectionContext) {
+func (l *Listener) ExitComponent_scope(c *parser.Component_scopeContext) {
+	d := &ComponentReferenceScope{Name: c.IDENT().GetText()}
+	fmt.Printf("logging ast for %p\n", c)
+	l.Ast[c] = d
+
 }
 
-// -----------------------------------------------------------------------------
-// Primary Scope
-// -----------------------------------------------------------------------------
-func (l *Listener) ExitPrimary_component_referenceContext(c *parser.Primary_component_referenceContext) {
+func (l *Listener) ExitPrimary_component_reference(c *parser.Primary_component_referenceContext) {
+	l.Ast[c] = l.Ast[c.Component_reference()]
 }
 
 func (l *Listener) ExitPrimary_unsigned_number(c *parser.Primary_unsigned_numberContext) {
@@ -130,15 +153,15 @@ func (l *Listener) ExitPrimary_unsigned_number(c *parser.Primary_unsigned_number
 	if err != nil {
 		panic(err)
 	}
-	l.Ast[c] = UnsignedInteger{Value: uint(i)}
+	l.Ast[c] = &UnsignedInteger{Value: uint(i)}
 }
 
 func (l *Listener) ExitPrimary_true(c *parser.Primary_trueContext) {
-	l.Ast[c] = Boolean{Value: true}
+	l.Ast[c] = &Boolean{Value: true}
 }
 
 func (l *Listener) ExitPrimary_false(c *parser.Primary_falseContext) {
-	l.Ast[c] = Boolean{Value: false}
+	l.Ast[c] = &Boolean{Value: false}
 }
 
 func (l *Listener) ExitFactor(c *parser.FactorContext) {
@@ -151,9 +174,9 @@ func (l *Listener) ExitFactor(c *parser.FactorContext) {
 		op := c.GetOp().GetText()
 		right := l.Ast[primary[1]]
 		if op == "^" {
-			l.Ast[c] = Exponential{Left: left, Right: right}
+			l.Ast[c] = &Exponential{Left: left, Right: right}
 		} else if op == ".^" {
-			l.Ast[c] = ElemExponential{Left: left, Right: right}
+			l.Ast[c] = &ElemExponential{Left: left, Right: right}
 		}
 	} else {
 		panic("exponential cannot have more than 2 arguments")
@@ -179,7 +202,7 @@ func (l *Listener) ExitTerm(c *parser.TermContext) {
 			res = ElemDivide{Left: left, Right: right}
 		}
 	}
-	l.Ast[c] = res
+	l.Ast[c] = &res
 }
 
 func (l *Listener) ExitArithmetic_expression(c *parser.Arithmetic_expressionContext) {
@@ -209,7 +232,7 @@ func (l *Listener) ExitArithmetic_expression(c *parser.Arithmetic_expressionCont
 			res = ElemDivide{Left: left, Right: right}
 		}
 	}
-	l.Ast[c] = res
+	l.Ast[c] = &res
 }
 
 func (l *Listener) ExitRelation(c *parser.RelationContext) {
@@ -238,22 +261,31 @@ func (l *Listener) ExitSimple_expression(c *parser.Simple_expressionContext) {
 
 func (l *Listener) ExitExpression_simple(c *parser.Expression_simpleContext) {
 	// TODO
-	println("exit expression simple", c.GetText())
 	l.Ast[c] = l.Ast[c.Simple_expression()]
 }
 
-// func (l *Listener) ExitPrimary_component_scope(c *parser.Component_scopeContext) {
-// 	l.Ast[c] = Scope{}
-// }
+func (l *Listener) ExitFunction_arguments(c *parser.Function_argumentsContext) {
+	// TODO
+	l.Ast[c] = l.Ast[c.Expression()]
+}
 
-// func (l *Listener) ExitPrimary_component_reference(c *parser.Primary_component_referenceContext) {
-// 	local := c.Component_reference().GetLocal() != nil
-// 	scopes := c.Component_reference().AllComponent_scope()
-// 	s := ""
-// 	if local {
-// 		s += "."
-// 	}
-// 	for _, scope := range scopes {
-// 		s += scope.IDENT().GetText()
-// 	}
-// }
+func (l *Listener) ExitFunction_call_args(c *parser.Function_call_argsContext) {
+	// TODO
+	l.Ast[c] = l.Ast[c.Function_arguments()]
+}
+
+func (l *Listener) ExitPrimary_derivative(c *parser.Primary_derivativeContext) {
+	// TODO
+	l.Ast[c] = l.Ast[c.Function_call_args()]
+}
+
+func (l *Listener) ExitComposition_equation_section(c *parser.Composition_equation_sectionContext) {
+	// TODO
+	//l.Ast[c] = l.Ast[c]
+	l.Ast[c] = l.Ast[c.AllEquation()[0]]
+}
+
+func (l *Listener) ExitComposition(c *parser.CompositionContext) {
+	// TODO
+	l.Ast[c] = l.Ast[c.Composition_non_first(0)]
+}

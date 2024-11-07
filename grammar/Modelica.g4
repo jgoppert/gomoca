@@ -31,9 +31,9 @@ class_type:
     ;
 
 class_specifier:
-    long_class_specifier
-    //|short_class_specifier
-    //| der_class_specifier
+    long_class_specifier                          # class_specifier_long
+    //|short_class_specifier                      # class_specifier_short
+    //| der_class_specifier                       # class_specifier_der
     ;
 
 long_class_specifier :
@@ -75,10 +75,10 @@ element_list:
     ( element ';')*;
 
 element:
-    element_options class_definition    # element_class_definition
+    element_options component_clause  # element_component_clause
+    //| element_options class_definition    # element_class_definition
     //| element_options REPLACEABLE class_definition
     //     (constraining_clause description)? # element_replaceable_class_definition
-    | element_options component_clause  # element_component_clause
     //| element_options REPLACEABLE component_clause
     //     (constraining_clause description)?  # element_replaceable_component_clause
     //| import_clause

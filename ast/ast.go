@@ -19,6 +19,10 @@ type Class struct {
 	Components        map[string]Component
 	AlgorithmSections []AlgorithmSection
 	EquationSections  []EquationSection
+	Partial           bool
+	Type              string
+	Final             bool
+	Description       string
 }
 
 func NewClass() *Class {
@@ -31,11 +35,6 @@ func NewClass() *Class {
 
 type Component struct {
 	Name string
-}
-
-func NewComponent() *Component {
-	v := new(Component)
-	return v
 }
 
 //=========================================================
@@ -138,15 +137,15 @@ type ElemSubtract struct {
 	Right any
 }
 
-// type Reference struct {
-// 	local  Boolean
-// 	scopes []Scope
-// }
+type ComponentReference struct {
+	Local  bool
+	Scopes []ComponentReferenceScope
+}
 
-// type Scope struct {
-// 	name       String
-// 	subscripts []uint
-// }
+type ComponentReferenceScope struct {
+	Name       string
+	Subscripts []uint
+}
 
 // =========================================================
 //
