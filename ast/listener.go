@@ -63,9 +63,8 @@ func (l *Listener) ExitEveryRule(c antlr.ParserRuleContext) {
 // This is the root of the AST
 // -----------------------------------------------------------------------------
 func (l *Listener) ExitStored_definition(c *parser.Stored_definitionContext) {
-	d := Definition{}
+	d := *NewDefinition()
 	for i, class_def := range c.AllClass_definition() {
-		fmt.Println(i, &class_def)
 		class, ok := l.Ast[class_def].(Class)
 		if ok {
 			class.Final = c.FINAL(i) != nil
@@ -78,27 +77,49 @@ func (l *Listener) ExitStored_definition(c *parser.Stored_definitionContext) {
 }
 
 func (l *Listener) ExitClass_definition(c *parser.Class_definitionContext) {
-	d := NewClass()
+	class_spec, ok := l.Ast[c.Class_specifier()]
+	if !ok {
+		panic("key")
+	}
+	d := class_spec.(Class)
 	d.Partial = l.Ast[c.Class_prefixes().PARTIAL()].(bool)
 	d.Type = c.Class_prefixes().Class_type().GetText()
 	l.Ast[c] = d
-	println("c", c)
 }
 
-func (l *Listener) ExitLong_class_specifier(c *parser.Long_class_specifierContext) {
-	d := NewClass()
-	if c.IDENT(0).GetText() != c.IDENT(1).GetText() {
+func (l *Listener) ExitClass_specifier_long(c *parser.Class_specifier_longContext) {
+	d := *NewClass()
+	if c.GetName_start().GetText() != c.GetName_end().GetText() {
 		panic("class start name %s and end name %s don't match")
 	}
-	d.Name = c.IDENT(0).GetText()
+	d.Name = c.GetName_start().GetText()
 	d.Description = c.Description_string().GetText()
-
-	// for cElem := range c.Composition().Element_list().AllElement() {
-	// 	elem := l.Ast[cElem].(Component)
-	// 	d.Components[elem.Name] = elem
-	// }
-	//d.EquationSections = append(d.EquationSections, l.Ast[c.Composition()])
+	//d.Components = l.Ast[c.Composition().Element_list()]
 	l.Ast[c] = d
+}
+
+func (l *Listener) ExitElement_component_clause(c *parser.Element_component_clauseContext) {
+	l.Ast[c] = l.Ast[c.Component_clause()]
+}
+
+func (l *Listener) ExitElement_list(c *parser.Element_listContext) {
+	l.Ast[c] = l.Ast[c.AllElement()[0]]
+}
+
+func (l *Listener) ExitComponent_declaration(c *parser.Component_declarationContext) {
+	l.Ast[c] = l.Ast[c.Declaration()]
+}
+
+func (l *Listener) ExitDeclaration(c *parser.DeclarationContext) {
+	l.Ast[c] = c.IDENT()
+}
+
+func (l *Listener) ExitComponent_clause(c *parser.Component_clauseContext) {
+	l.Ast[c] = l.Ast[c.Component_list()]
+}
+
+func (l *Listener) ExitComponent_list(c *parser.Component_listContext) {
+	l.Ast[c] = l.Ast[c.AllComponent_declaration()[0]]
 }
 
 func (l *Listener) ExitClass_type_block(c *parser.Class_type_blockContext) {
@@ -113,33 +134,33 @@ func (l *Listener) ExitDescription_string(c *parser.Description_stringContext) {
 	l.Ast[c] = c.GetText()
 }
 
+func (l *Listener) ExitDescription(c *parser.DescriptionContext) { // unset class scope
+	l.Ast[c] = l.Ast[c.Description_string()]
+}
+
 func (l *Listener) ExitEquation_simple(c *parser.Equation_simpleContext) {
 	l.Ast[c] = &Equation{
 		Left:  l.Ast[c.Simple_expression()],
 		Right: l.Ast[c.Expression()]}
-	fmt.Printf("%v\n", l.Ast[c])
 }
 
 // -----------------------------------------------------------------------------
 // Primary
 // -----------------------------------------------------------------------------
 func (l *Listener) ExitComponent_reference(c *parser.Component_referenceContext) {
-	ref := &ComponentReference{Local: c.GetLocal() != nil}
+	ref := ComponentReference{Local: c.GetLocal() != nil}
 	for _, c_scope := range c.AllComponent_scope() {
-		fmt.Printf("key: %p\n", c_scope)
-
 		scope, ok := l.Ast[c_scope]
 		if !ok {
 			log.Fatalf("key: %p not found", c_scope)
 		}
-		ref.Scopes = append(ref.Scopes, *scope.(*ComponentReferenceScope))
+		ref.Scopes = append(ref.Scopes, scope.(ComponentReferenceScope))
 	}
 	l.Ast[c] = ref
 }
 
 func (l *Listener) ExitComponent_scope(c *parser.Component_scopeContext) {
-	d := &ComponentReferenceScope{Name: c.IDENT().GetText()}
-	fmt.Printf("logging ast for %p\n", c)
+	d := ComponentReferenceScope{Name: c.IDENT().GetText()}
 	l.Ast[c] = d
 
 }
@@ -153,15 +174,15 @@ func (l *Listener) ExitPrimary_unsigned_number(c *parser.Primary_unsigned_number
 	if err != nil {
 		panic(err)
 	}
-	l.Ast[c] = &UnsignedInteger{Value: uint(i)}
+	l.Ast[c] = UnsignedInteger{Value: uint(i)}
 }
 
 func (l *Listener) ExitPrimary_true(c *parser.Primary_trueContext) {
-	l.Ast[c] = &Boolean{Value: true}
+	l.Ast[c] = Boolean{Value: true}
 }
 
 func (l *Listener) ExitPrimary_false(c *parser.Primary_falseContext) {
-	l.Ast[c] = &Boolean{Value: false}
+	l.Ast[c] = Boolean{Value: false}
 }
 
 func (l *Listener) ExitFactor(c *parser.FactorContext) {
@@ -174,9 +195,9 @@ func (l *Listener) ExitFactor(c *parser.FactorContext) {
 		op := c.GetOp().GetText()
 		right := l.Ast[primary[1]]
 		if op == "^" {
-			l.Ast[c] = &Exponential{Left: left, Right: right}
+			l.Ast[c] = Exponential{Left: left, Right: right}
 		} else if op == ".^" {
-			l.Ast[c] = &ElemExponential{Left: left, Right: right}
+			l.Ast[c] = ElemExponential{Left: left, Right: right}
 		}
 	} else {
 		panic("exponential cannot have more than 2 arguments")
@@ -202,7 +223,7 @@ func (l *Listener) ExitTerm(c *parser.TermContext) {
 			res = ElemDivide{Left: left, Right: right}
 		}
 	}
-	l.Ast[c] = &res
+	l.Ast[c] = res
 }
 
 func (l *Listener) ExitArithmetic_expression(c *parser.Arithmetic_expressionContext) {
@@ -232,7 +253,7 @@ func (l *Listener) ExitArithmetic_expression(c *parser.Arithmetic_expressionCont
 			res = ElemDivide{Left: left, Right: right}
 		}
 	}
-	l.Ast[c] = &res
+	l.Ast[c] = res
 }
 
 func (l *Listener) ExitRelation(c *parser.RelationContext) {

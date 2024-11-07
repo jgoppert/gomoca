@@ -34,7 +34,8 @@ func NewClass() *Class {
 }
 
 type Component struct {
-	Name string
+	Name        string
+	Description string
 }
 
 //=========================================================

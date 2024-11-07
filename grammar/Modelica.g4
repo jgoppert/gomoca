@@ -31,23 +31,16 @@ class_type:
     ;
 
 class_specifier:
-    long_class_specifier                          # class_specifier_long
-    //|short_class_specifier                      # class_specifier_short
-    //| der_class_specifier                       # class_specifier_der
-    ;
-
-long_class_specifier :
-    IDENT description_string composition END IDENT
-    //| EXTENDS IDENT class_modification? description_string composition END IDENT
+    name_start=IDENT description_string composition END name_end=IDENT                                  # class_specifier_long
+    //| EXTENDS name_start=IDENT class_modification? description_string composition END name_end=IDENT    # class_specifier_long_extends
+    //|IDENT '=' DER '(' type_specifier ',' IDENT ( ',' IDENT)* ')' description                           # class_specifier_der
+    //|short_class_specifier                                                                              # class_specifier_short
     ;
 
 // short_class_specifier:
 //     IDENT '=' causality=(INPUT | OUTPUT) type_specifier array_subscripts? class_modification? description
 //     | IDENT '=' ENUMERATION '(' ( enum_list? | ':') ')' description
 //     ;
-
-// der_class_specifier:
-//     IDENT '=' DER '(' type_specifier ',' IDENT ( ',' IDENT)* ')' description;
 
 // enum_list:
 //     enumeration_literal ( ',' enumeration_literal)*;
@@ -509,9 +502,10 @@ IDENT : NON_DIGIT ( DIGIT | NON_DIGIT )* | Q_IDENT;
 fragment Q_IDENT : '\'' ( Q_CHAR | S_ESCAPE)+;
 fragment NON_DIGIT : [_a-zA-Z];
 fragment DIGIT :  [0-9];
-fragment Q_CHAR : NON_DIGIT | DIGIT | [!#$%&()*+,-./:;<>=?@[\]^{}|~ "];
+fragment Q_CHAR : NON_DIGIT | DIGIT | [!#$%&()*+,-./:;<>=?@[\]^{}|~ '];
 fragment S_ESCAPE : '\\' ('’' | '\'' | '"' | '?' | '\\' | 'a' | 'b' | 'f' | 'n' | 'r' | 't' | 'v');
-STRING : '"' (S_CHAR | S_ESCAPE)* '"';
+//STRING : '"' (S_CHAR | S_ESCAPE)* '"';
+STRING : '"' Q_CHAR* '"';
 fragment S_CHAR : [\u0000-\u00FF];
 UNSIGNED_INTEGER : DIGIT (DIGIT)*;
 UNSIGNED_REAL :
