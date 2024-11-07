@@ -45,7 +45,7 @@ jobs:
       
     - name: Fail if coverage is below threshold
       run: |
-        if (( $(echo "$total_coverage < 50" | bc -l) )); then
+        if [ $(echo "$total_coverage < 50" | bc -l) == 1 ]; then
           echo "Coverage ($total_coverage%) is below the threshold (50%)"
           exit 1
         fi
