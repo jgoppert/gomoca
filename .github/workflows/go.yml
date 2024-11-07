@@ -21,13 +21,16 @@ jobs:
       with:
         go-version: '1.22.2'
 
+    - name: Install dependencies
+      run: go mod tidy
+
     - name: Generate
       run: go generate -v ./...
 
     - name: Build
       run: go build -v ./...
 
-    - name: Test
+    - name: Run tests
       run: go test -v ./...
 
     - name: Generate coverage report
@@ -38,11 +41,11 @@ jobs:
       run: |
         coverage=$(go tool cover -func=coverage.out | grep total | awk ‘{print substr($3, 1, length($3)-1)}’)
         echo “total_coverage=$coverage” >> $GITHUB_OUPUT
-        echo “Coverage: $coverage%”
+        echo "Coverage: $coverage%"
       
     - name: Fail if coverage is below threshold
       run: |
         if (( $(echo “$total_coverage < 50” | bc -l) )); then
-          echo “Coverage ($total_coverage%) is below the threshold (50%)”
+          echo "Coverage ($total_coverage%) is below the threshold (50%)"
           exit 1
         fi
