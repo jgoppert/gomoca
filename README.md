@@ -1,4 +1,4 @@
-# gomoca https://github.com/jgoppert/gomoca/actions/workflows/WORKFLOW-FILE/badge.svg
+# gomoca ![CI](https://github.com/jgoppert/gomoca/actions/workflows/WORKFLOW-FILE/badge.svg)
 
 A Modelica Compiler written in GO.
 
