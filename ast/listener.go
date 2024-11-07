@@ -24,7 +24,7 @@ type Listener struct {
 }
 
 func Parse(file string, listener *Listener) Definition {
-	input, _ := antlr.NewFileStream(file)
+	input := antlr.NewInputStream(file)
 	lexer := parser.NewModelicaLexer(input)
 	stream := antlr.NewCommonTokenStream(lexer, 0)
 	p := parser.NewModelicaParser(stream)

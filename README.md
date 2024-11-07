@@ -2,10 +2,12 @@
 
 A Modelica Compiler written in GO.
 
-## Updating ANTLR Parser
+## Building and Testing
 
 ```bash
-go generate ./grammar
+go generate ./...
+go test ./...
+go build -o bin ./...
 ```
 ## Test CLI
 
